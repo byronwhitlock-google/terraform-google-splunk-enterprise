@@ -32,12 +32,14 @@ resource "google_compute_subnetwork" "splunk_subnet" {
 resource "google_compute_address" "splunk_cluster_master_ip" {
   name         = "splunk-cm-ip"
   address_type = "INTERNAL"
+  region = var.region
   subnetwork = var.create_network ? google_compute_subnetwork.splunk_subnet[0].self_link : var.splunk_subnet 
 }
 
 resource "google_compute_address" "splunk_deployer_ip" {
   name         = "splunk-deployer-ip"
   address_type = "INTERNAL"
+   region = var.region
   subnetwork   = var.create_network ? google_compute_subnetwork.splunk_subnet[0].self_link : var.splunk_subnet
 }
 

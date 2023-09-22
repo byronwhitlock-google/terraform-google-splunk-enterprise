@@ -102,3 +102,52 @@ variable "idx_disk_count" {
   type = number
   default = 1
 }
+
+
+# CMEK YAHOO SPECIFIC 
+variable "CMEK_key_name" {
+
+  description = "Name of the KMS key"
+
+  type = string
+
+}
+
+variable "CMEK_keyring_name" {
+
+  description = "Name of the KMS Keyring"
+
+  type = string
+
+}
+
+variable "CMEK_algorithm" {
+
+  description = "Algorithm for the KMS key"
+
+
+  type = string
+
+}
+
+
+variable "CMEK_rotation_period" {
+
+  description = "Time in seconds to rotate key"
+  type = string
+
+
+}
+
+
+#variable enable_confidential_compute {
+#    description = "Enable Confidential Computing on all VMs?"
+#    type = bool
+#    default = false
+#}
+
+variable enable_secure_boot {
+    description = "Enable Secure Boot on VMs?"
+    type = bool
+    default = false
+}

@@ -1,7 +1,7 @@
 # Copyright 2019 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
+# you may not use this file e7xcept in compliance with the License.
 # You may obtain a copy of the License at
 #
 #     https://www.apache.org/licenses/LICENSE-2.0
@@ -21,10 +21,24 @@ resource "google_compute_instance" "splunk_cluster_master" {
   machine_type = "n1-standard-4"
   zone = local.zone
   tags = ["splunk"]
+  #allow_stopping_for_update = true
+  scheduling {
+    on_host_maintenance = "TERMINATE"
+  }
+  # confidential_instance_config {
+  #   enable_confidential_compute = var.enable_confidential_compute
+  # }   
+
+  shielded_instance_config {
+    enable_secure_boot          = var.enable_secure_boot
+  }
 
   boot_disk {
+    # USE CMEK KEY!
+    kms_key_self_link =  google_kms_crypto_key.key.id
+    
     initialize_params {
-      image = "ubuntu-os-cloud/ubuntu-1604-lts"
+      image = "ubuntu-os-cloud/ubuntu-2204-lts"
       type  = "pd-ssd"
       size  = "50"
     }
@@ -41,15 +55,26 @@ resource "google_compute_instance" "splunk_cluster_master" {
   }
 
   metadata = {
-    startup-script = data.template_file.splunk_startup_script.rendered
+    startup-script = templatefile("${path.module}/startup_script.sh.tpl", {
+      SPLUNK_PACKAGE_URL              = local.splunk_package_url
+      SPLUNK_PACKAGE_NAME             = local.splunk_package_name
+      SPLUNK_ADMIN_PASSWORD           = var.splunk_admin_password
+      SPLUNK_CLUSTER_SECRET           = var.splunk_cluster_secret
+      SPLUNK_INDEXER_DISCOVERY_SECRET = var.splunk_indexer_discovery_secret
+      SPLUNK_CM_PRIVATE_IP            = google_compute_address.splunk_cluster_master_ip.address
+      SPLUNK_DEPLOYER_PRIVATE_IP      = google_compute_address.splunk_deployer_ip.address
+    })
+
     splunk-role    = "IDX-Master"
     enable-guest-attributes = "TRUE"
   }
+    depends_on = [
+      google_compute_address.splunk_cluster_master_ip,
+      google_compute_address.splunk_deployer_ip,
 
-  depends_on = [
-    google_compute_firewall.allow_internal,
-    google_compute_firewall.allow_ssh,
-    google_compute_firewall.allow_splunk_web,
+      google_compute_firewall.allow_internal,
+      google_compute_firewall.allow_ssh,
+      google_compute_firewall.allow_splunk_web,
   ]
 }
 
@@ -60,12 +85,22 @@ resource "google_compute_instance" "splunk_deployer" {
   name         = "splunk-deployer"
   machine_type = "n1-standard-4"
   zone = local.zone
-
   tags = ["splunk"]
+ # allow_stopping_for_update = true
 
+  shielded_instance_config {
+    enable_secure_boot          = var.enable_secure_boot
+  }
+  scheduling {
+    on_host_maintenance = "TERMINATE"
+  }
+  #confidential_instance_config {
+  #  enable_confidential_compute = var.enable_confidential_compute
+  #}   
   boot_disk {
+    kms_key_self_link =  google_kms_crypto_key.key.id
     initialize_params {
-      image = "ubuntu-os-cloud/ubuntu-1604-lts"
+      image = "ubuntu-os-cloud/ubuntu-2204-lts"
       type  = "pd-ssd"
       size  = "50"
     }
@@ -81,12 +116,22 @@ resource "google_compute_instance" "splunk_deployer" {
   }
 
   metadata = {
-    startup-script = data.template_file.splunk_startup_script.rendered
+    startup-script = templatefile("${path.module}/startup_script.sh.tpl", {
+      SPLUNK_PACKAGE_URL              = local.splunk_package_url
+      SPLUNK_PACKAGE_NAME             = local.splunk_package_name
+      SPLUNK_ADMIN_PASSWORD           = var.splunk_admin_password
+      SPLUNK_CLUSTER_SECRET           = var.splunk_cluster_secret
+      SPLUNK_INDEXER_DISCOVERY_SECRET = var.splunk_indexer_discovery_secret
+      SPLUNK_CM_PRIVATE_IP            = google_compute_address.splunk_cluster_master_ip.address
+      SPLUNK_DEPLOYER_PRIVATE_IP      = google_compute_address.splunk_deployer_ip.address
+    })
     splunk-role    = "SHC-Deployer"
     enable-guest-attributes = "TRUE"
   }
 
   depends_on = [
+    google_compute_address.splunk_cluster_master_ip,
+    google_compute_address.splunk_deployer_ip,
     google_compute_firewall.allow_internal,
     google_compute_firewall.allow_ssh,
     google_compute_firewall.allow_splunk_web,
@@ -120,9 +165,23 @@ resource "google_compute_instance_template" "splunk_idx_template-pd" {
   machine_type = "n1-standard-4"
   tags = ["splunk"]
 
+ # allow_stopping_for_update = true
+  shielded_instance_config {
+    enable_secure_boot          = var.enable_secure_boot
+  }
+  scheduling {
+    on_host_maintenance = "TERMINATE"
+  }
+  #confidential_instance_config {
+  #  enable_confidential_compute = var.enable_confidential_compute
+  #}   
+
   # boot disk
   disk {
-    source_image = "ubuntu-os-cloud/ubuntu-1604-lts"
+    disk_encryption_key {
+      kms_key_self_link =  google_kms_crypto_key.key.id
+    }
+    source_image = "ubuntu-os-cloud/ubuntu-2204-lts"
     disk_type    = "pd-ssd"
     disk_size_gb = "50"
     auto_delete  = false
@@ -130,6 +189,9 @@ resource "google_compute_instance_template" "splunk_idx_template-pd" {
   }
   # data disk
   disk {
+    disk_encryption_key {
+      kms_key_self_link =  google_kms_crypto_key.key.id
+    }
     source_image = google_compute_image.indexer-data-disk-image[0].name
     disk_name = "splunk-db"
     auto_delete = false
@@ -143,7 +205,15 @@ resource "google_compute_instance_template" "splunk_idx_template-pd" {
     }
   }
   metadata = {
-    startup-script = data.template_file.splunk_startup_script.rendered
+    startup-script = templatefile("${path.module}/startup_script.sh.tpl", {
+      SPLUNK_PACKAGE_URL              = local.splunk_package_url
+      SPLUNK_PACKAGE_NAME             = local.splunk_package_name
+      SPLUNK_ADMIN_PASSWORD           = var.splunk_admin_password
+      SPLUNK_CLUSTER_SECRET           = var.splunk_cluster_secret
+      SPLUNK_INDEXER_DISCOVERY_SECRET = var.splunk_indexer_discovery_secret
+      SPLUNK_CM_PRIVATE_IP            = google_compute_address.splunk_cluster_master_ip.address
+      SPLUNK_DEPLOYER_PRIVATE_IP      = google_compute_address.splunk_deployer_ip.address
+    })
     splunk-role    = "IDX-Peer"
     enable-guest-attributes = "TRUE"
   }
@@ -152,7 +222,10 @@ resource "google_compute_instance_template" "splunk_idx_template-pd" {
     create_before_destroy = true
   }
   
-  depends_on = [google_compute_image.indexer-data-disk-image]
+  depends_on = [google_compute_image.indexer-data-disk-image,
+        google_compute_address.splunk_cluster_master_ip,
+      google_compute_address.splunk_deployer_ip,
+  ]
 }
 
 # Indexer Template for Local SSD's
@@ -161,9 +234,24 @@ resource "google_compute_instance_template" "splunk_idx_template-localssd" {
   name_prefix  = "splunk-idx-template-"
   machine_type = "n1-standard-4"
   tags = ["splunk"]
+  
+ # allow_stopping_for_update = true
+  shielded_instance_config {
+    enable_secure_boot          = var.enable_secure_boot
+  }
+  scheduling {
+    on_host_maintenance = "TERMINATE"
+  }
+  #confidential_instance_config {
+  #  enable_confidential_compute = var.enable_confidential_compute
+  #}   
+
   # boot disk
   disk {
-    source_image = "ubuntu-os-cloud/ubuntu-1604-lts"
+    disk_encryption_key {
+      kms_key_self_link =  google_kms_crypto_key.key.id
+    }
+    source_image = "ubuntu-os-cloud/ubuntu-2204-lts"
     disk_type    = "pd-ssd"
     disk_size_gb = "50"
     auto_delete = false
@@ -187,11 +275,20 @@ resource "google_compute_instance_template" "splunk_idx_template-localssd" {
     }
   }
   metadata = {
-    startup-script = data.template_file.splunk_startup_script.rendered
+    startup-script = templatefile("${path.module}/startup_script.sh.tpl", {
+      SPLUNK_PACKAGE_URL              = local.splunk_package_url
+      SPLUNK_PACKAGE_NAME             = local.splunk_package_name
+      SPLUNK_ADMIN_PASSWORD           = var.splunk_admin_password
+      SPLUNK_CLUSTER_SECRET           = var.splunk_cluster_secret
+      SPLUNK_INDEXER_DISCOVERY_SECRET = var.splunk_indexer_discovery_secret
+      SPLUNK_CM_PRIVATE_IP            = google_compute_address.splunk_cluster_master_ip.address
+      SPLUNK_DEPLOYER_PRIVATE_IP      = google_compute_address.splunk_deployer_ip.address
+    })
     splunk-role    = "IDX-Peer"
     enable-guest-attributes = "TRUE"
   }
-
+  depends_on = [         google_compute_address.splunk_cluster_master_ip,
+      google_compute_address.splunk_deployer_ip, ]
   lifecycle {
     create_before_destroy = true
   }
@@ -233,17 +330,30 @@ resource "google_compute_region_instance_group_manager" "indexer_cluster" {
 resource "google_compute_instance_template" "splunk_shc_template" {
   name_prefix  = "splunk-shc-template-"
   machine_type = "n1-standard-4"
-
   tags = ["splunk"]
+ # allow_stopping_for_update = true
+  
+  shielded_instance_config {
+    enable_secure_boot          = var.enable_secure_boot
+  }
 
+  scheduling {
+    on_host_maintenance = "TERMINATE"
+  }
+  #confidential_instance_config {
+  #  enable_confidential_compute = var.enable_confidential_compute
+  #}   
   # boot disk
   disk {
-    source_image = "ubuntu-os-cloud/ubuntu-1604-lts"
+    disk_encryption_key {
+      kms_key_self_link =  google_kms_crypto_key.key.id
+    }
+    source_image = "ubuntu-os-cloud/ubuntu-2204-lts"
     disk_type    = "pd-ssd"
     disk_size_gb = "50"
     boot         = "true"
   }
-
+  
   network_interface {
     network = var.create_network ? google_compute_network.vpc_network[0].self_link : var.splunk_network
     subnetwork = var.create_network ? google_compute_subnetwork.splunk_subnet[0].self_link : var.splunk_subnet
@@ -253,7 +363,15 @@ resource "google_compute_instance_template" "splunk_shc_template" {
   }
 
   metadata = {
-    startup-script = data.template_file.splunk_startup_script.rendered
+    startup-script = templatefile("${path.module}/startup_script.sh.tpl", {
+      SPLUNK_PACKAGE_URL              = local.splunk_package_url
+      SPLUNK_PACKAGE_NAME             = local.splunk_package_name
+      SPLUNK_ADMIN_PASSWORD           = var.splunk_admin_password
+      SPLUNK_CLUSTER_SECRET           = var.splunk_cluster_secret
+      SPLUNK_INDEXER_DISCOVERY_SECRET = var.splunk_indexer_discovery_secret
+      SPLUNK_CM_PRIVATE_IP            = google_compute_address.splunk_cluster_master_ip.address
+      SPLUNK_DEPLOYER_PRIVATE_IP      = google_compute_address.splunk_deployer_ip.address
+    })
     splunk-role    = "SHC-Member"
     enable-guest-attributes = "TRUE"
   }
@@ -277,7 +395,8 @@ resource "google_compute_region_instance_group_manager" "search_head_cluster" {
     port = "8000"
   }
 
-  depends_on = [
+  depends_on = [         google_compute_address.splunk_cluster_master_ip,
+      google_compute_address.splunk_deployer_ip, 
     google_compute_instance.splunk_cluster_master,
     google_compute_instance.splunk_deployer,
     google_compute_instance_template.splunk_shc_template

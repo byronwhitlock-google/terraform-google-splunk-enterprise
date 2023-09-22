@@ -13,21 +13,27 @@
 # limitations under the License.
 
 terraform {
-  required_version = "~> 0.12.20"
-  experiments = [variable_validation]
+  required_providers {
+    google-beta = {
+      source = "hashicorp/google-beta"
+      version = ">= 4.76.0"
+    }
+    splunk = {
+      source = "splunk/splunk"
+      version = "1.4.22"
+    }
+}
 }
 
 provider "google" {
   project = var.project
-  region  = var.region
-  version = "~> 2.14"
 }
 
 provider "google-beta" {
   project = var.project
-  region  = var.region
-  version = "~> 2.14"
 }
+
+data "google_project" "project" {}
 
 locals {
   splunk_package_name = "splunk-8.0.5-a1a6394cc5ae-Linux-x86_64.tgz"
@@ -36,24 +42,8 @@ locals {
   zone    = var.zone == "" ? data.google_compute_zones.available.names[0] : var.zone
 }
 
-data "template_file" "splunk_startup_script" {
-  template = file(format("${path.module}/startup_script.sh.tpl"))
 
-  vars = {
-    SPLUNK_PACKAGE_URL              = local.splunk_package_url
-    SPLUNK_PACKAGE_NAME             = local.splunk_package_name
-    SPLUNK_ADMIN_PASSWORD           = var.splunk_admin_password
-    SPLUNK_CLUSTER_SECRET           = var.splunk_cluster_secret
-    SPLUNK_INDEXER_DISCOVERY_SECRET = var.splunk_indexer_discovery_secret
-    SPLUNK_CM_PRIVATE_IP            = google_compute_address.splunk_cluster_master_ip.address
-    SPLUNK_DEPLOYER_PRIVATE_IP      = google_compute_address.splunk_deployer_ip.address
-  }
 
-  depends_on = [
-    google_compute_address.splunk_cluster_master_ip,
-    google_compute_address.splunk_deployer_ip,
-  ]
-}
 
 data "google_compute_zones" "available" {
     region = var.region
@@ -75,6 +65,9 @@ output "indexer_cluster_hec_url" {
   value = "http://${google_compute_global_address.indexer_hec_input_address.address}:8080"
 }
 
-output "indexer_cluster_hec_token" {
-  value = "${module.shell_output_token.stdout}"
+output "indexer_cluser_hec_token_cmd" {
+  value = "gcloud compute instances get-guest-attributes ${local.splunk_cluster_master_name} --zone ${local.zone} --query-path=splunk/token --format='value(VALUE)'"
 }
+#output "indexer_cluster_hec_token" {
+#  value = "${module.shell_output_token.stdout}"
+#}
