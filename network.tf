@@ -119,7 +119,7 @@ resource "google_compute_backend_service" "splunk_hec" {
 ####
 ## Firewall Rules
 ####
-resource "google_compute_firewall" "allow_internal" {
+resource "google_compute_firewall" "splunk_allow_internal" {
   name    = "splunk-network-allow-internal"
   network = var.create_network ? google_compute_network.vpc_network[0].name : var.splunk_network
 
@@ -137,7 +137,7 @@ resource "google_compute_firewall" "allow_internal" {
   target_tags = ["splunk"]
 }
 
-resource "google_compute_firewall" "allow_health_checks" {
+resource "google_compute_firewall" "splunk_allow_health_checks" {
   name    = "splunk-network-allow-health-checks"
   network = var.create_network ? google_compute_network.vpc_network[0].name : var.splunk_network
 
@@ -150,7 +150,7 @@ resource "google_compute_firewall" "allow_health_checks" {
   target_tags   = ["splunk"]
 }
 
-resource "google_compute_firewall" "allow_ssh" {
+resource "google_compute_firewall" "splunk_allow_ssh" {
   name    = "splunk-network-allow-ssh"
   network = var.create_network ? google_compute_network.vpc_network[0].name : var.splunk_network
 
@@ -190,7 +190,7 @@ resource "google_compute_health_check" "default" {
     port = "8089"
   }
 
-  depends_on = [google_compute_firewall.allow_health_checks]
+  depends_on = [google_compute_firewall.splunk_allow_health_checks]
 }
 
 resource "google_compute_health_check" "splunk_hec" {
@@ -205,7 +205,7 @@ resource "google_compute_health_check" "splunk_hec" {
     port         = "8088"
   }
 
-  depends_on = [google_compute_firewall.allow_health_checks]
+  depends_on = [google_compute_firewall.splunk_allow_health_checks]
 }
 
 resource "google_compute_health_check" "splunk_idx" {
@@ -220,6 +220,6 @@ resource "google_compute_health_check" "splunk_idx" {
     port         = "8089"
   }
 
-  depends_on = [google_compute_firewall.allow_health_checks]
+  depends_on = [google_compute_firewall.splunk_allow_health_checks]
 }
 

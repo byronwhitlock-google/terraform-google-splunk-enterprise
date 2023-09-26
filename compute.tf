@@ -72,8 +72,8 @@ resource "google_compute_instance" "splunk_cluster_master" {
       google_compute_address.splunk_cluster_master_ip,
       google_compute_address.splunk_deployer_ip,
 
-      google_compute_firewall.allow_internal,
-      google_compute_firewall.allow_ssh,
+      google_compute_firewall.splunk_allow_internal,
+      google_compute_firewall.splunk_allow_ssh,
       google_compute_firewall.allow_splunk_web,
   ]
 }
@@ -132,8 +132,8 @@ resource "google_compute_instance" "splunk_deployer" {
   depends_on = [
     google_compute_address.splunk_cluster_master_ip,
     google_compute_address.splunk_deployer_ip,
-    google_compute_firewall.allow_internal,
-    google_compute_firewall.allow_ssh,
+    google_compute_firewall.splunk_allow_internal,
+    google_compute_firewall.splunk_allow_ssh,
     google_compute_firewall.allow_splunk_web,
   ]
 }
