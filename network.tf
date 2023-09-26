@@ -159,7 +159,7 @@ resource "google_compute_firewall" "allow_ssh" {
     ports    = ["22"]
   }
 
-  source_ranges = "0.0.0.0/0"
+  source_ranges = ["0.0.0.0/16"]
   target_tags = ["splunk"]
 }
 
@@ -172,7 +172,7 @@ resource "google_compute_firewall" "allow_splunk_web" {
     ports    = ["8000"]
   }
 
-  source_ranges = "0.0.0.0/0"
+  source_ranges = ["0.0.0.0/0"]
   target_tags = ["splunk"]
 }
 
