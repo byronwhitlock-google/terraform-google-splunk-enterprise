@@ -54,11 +54,11 @@ output "search_head_cluster_url" {
 }
 
 output "search_head_deployer_url" {
-  value = "http://${google_compute_instance.splunk_deployer.network_interface.0.access_config.0.nat_ip}:8000"
+  value = "http://${google_compute_address.splunk_deployer_ip.address}:8000"
 }
 
 output "indexer_cluster_master_url" {
-  value = "http://${google_compute_instance.splunk_cluster_master.network_interface.0.access_config.0.nat_ip}:8000"
+  value = "http://${google_compute_address.splunk_cluster_master_ip.address}:8000"
 }
 
 output "indexer_cluster_hec_url" {

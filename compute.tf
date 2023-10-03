@@ -49,9 +49,10 @@ resource "google_compute_instance" "splunk_cluster_master" {
     network_ip = google_compute_address.splunk_cluster_master_ip.address
     subnetwork = var.create_network ? google_compute_subnetwork.splunk_subnet[0].self_link : var.splunk_subnet
 
-    access_config {
-      # Ephemeral IP
-    }
+    # Removing this removes the ephemeral ip
+    #access_config {
+    #  # Ephemeral IP
+    #}
   }
 
   metadata = {
@@ -72,6 +73,9 @@ resource "google_compute_instance" "splunk_cluster_master" {
       google_compute_address.splunk_cluster_master_ip,
       google_compute_address.splunk_deployer_ip,
 
+      google_compute_firewall.splunk_allow_internal,
+      google_compute_firewall.splunk_allow_ssh,
+      google_compute_firewall.allow_splunk_web,
   ]
 }
 
@@ -107,9 +111,10 @@ resource "google_compute_instance" "splunk_deployer" {
     network = var.create_network ? google_compute_network.vpc_network[0].self_link : var.splunk_network
     network_ip = google_compute_address.splunk_deployer_ip.address
     subnetwork = var.create_network ? google_compute_subnetwork.splunk_subnet[0].self_link : var.splunk_subnet
-    access_config {
-      # Ephemeral IP
-    }
+    # Removing this removes the ephemeral ip
+    #access_config {
+    #  # Ephemeral IP
+    #}
   }
 
   metadata = {
@@ -128,7 +133,10 @@ resource "google_compute_instance" "splunk_deployer" {
 
   depends_on = [
     google_compute_address.splunk_cluster_master_ip,
-    google_compute_address.splunk_deployer_ip
+    google_compute_address.splunk_deployer_ip,
+    google_compute_firewall.splunk_allow_internal,
+    google_compute_firewall.splunk_allow_ssh,
+    google_compute_firewall.allow_splunk_web,
   ]
 }
 
@@ -194,9 +202,10 @@ resource "google_compute_instance_template" "splunk_idx_template-pd" {
   network_interface {
     network = var.create_network ? google_compute_network.vpc_network[0].self_link : var.splunk_network
     subnetwork = var.create_network ? google_compute_subnetwork.splunk_subnet[0].self_link : var.splunk_subnet
-    access_config {
-      # Ephemeral IP
-    }
+    # Removing this removes the ephemeral ip
+    #access_config {
+    #  # Ephemeral IP
+    #}
   }
   metadata = {
     startup-script = templatefile("${path.module}/startup_script.sh.tpl", {
@@ -264,9 +273,10 @@ resource "google_compute_instance_template" "splunk_idx_template-localssd" {
   network_interface {
     network = var.create_network ? google_compute_network.vpc_network[0].self_link : var.splunk_network
     subnetwork = var.create_network ? google_compute_subnetwork.splunk_subnet[0].self_link : var.splunk_subnet
-    access_config {
-      # Ephemeral IP
-    }
+    # Removing this removes the ephemeral ip
+    #access_config {
+    #  # Ephemeral IP
+    #}
   }
   metadata = {
     startup-script = templatefile("${path.module}/startup_script.sh.tpl", {
@@ -351,9 +361,10 @@ resource "google_compute_instance_template" "splunk_shc_template" {
   network_interface {
     network = var.create_network ? google_compute_network.vpc_network[0].self_link : var.splunk_network
     subnetwork = var.create_network ? google_compute_subnetwork.splunk_subnet[0].self_link : var.splunk_subnet
-    access_config {
-      # Ephemeral IP
-    }
+    # Removing this removes the ephemeral ip
+    #access_config {
+    #  # Ephemeral IP
+    #}
   }
 
   metadata = {
